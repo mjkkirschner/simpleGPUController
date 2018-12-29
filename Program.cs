@@ -6,6 +6,8 @@ using System.Numerics;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System.Collections;
+using fixedPointMath;
 
 namespace simpleGPUTests
 {
@@ -48,6 +50,12 @@ namespace simpleGPUTests
             var DX = end.X - start.X;
             var DY = end.Y - start.Y;
             var diff = 2 * DY - DX;
+            var yIncrement = 1;
+            if (DY < 0)
+            {
+                yIncrement = -1;
+                DY = -DY;
+            }
 
             output.Add(new Vector2(start.X, start.Y));
 
@@ -62,7 +70,7 @@ namespace simpleGPUTests
                 //increment y
                 else
                 {
-                    j = j + 1;
+                    j = j + yIncrement;
                     output.Add(new Vector2(i, j));
                     diff = diff + 2 * DY - 2 * DX;
                 }
@@ -116,8 +124,16 @@ namespace simpleGPUTests
 
             static void Main(string[] args)
             {
-                var width = 640;
-                var height = 480;
+
+                Console.WriteLine(args.Length);
+                if (args.Contains("testfixedpoint"))
+                {
+                    testFixedPoint();
+                    return;
+                }
+
+                var width = 1024;
+                var height = 768;
                 //load our teapot
                 var vectors = objLoader.loadVertsFromObjAtPath(new FileInfo(@"./teapot.obj"));
                 var tris = objLoader.loadTrisFromObjAtPath(new FileInfo(@"./teapot.obj"));
@@ -182,6 +198,9 @@ namespace simpleGPUTests
                              //now draw tris
                              tris.ForEach(tri =>
                              {
+
+                                 //TODO flip x and y based on octants of x and y.
+
                                  var line1 = plotLine(imageCoords[tri.Item1 - 1], imageCoords[tri.Item2 - 1]);
                                  var line2 = plotLine(imageCoords[tri.Item2 - 1], imageCoords[tri.Item3 - 1]);
                                  var line3 = plotLine(imageCoords[tri.Item3 - 1], imageCoords[tri.Item1 - 1]);
@@ -202,6 +221,21 @@ namespace simpleGPUTests
                          }
 
                      });
+            }
+
+            private static void testFixedPoint()
+            {
+                var vectors = objLoader.loadVertsFromObjAtPath(new FileInfo(@"./teapot.obj"));
+                vectors.ForEach(x =>
+                {
+                    var xstring = fixedPointMath.fixedPointMath.floatToFixedPoint(x.X, 16, 4);
+                    var ystring = fixedPointMath.fixedPointMath.floatToFixedPoint(x.Y, 16, 4);
+                    var zstring = fixedPointMath.fixedPointMath.floatToFixedPoint(x.Z, 16, 4);
+                    var wstring = fixedPointMath.fixedPointMath.floatToFixedPoint(x.W, 16, 4);
+
+
+                    Console.WriteLine($"vector {x} becomes {(xstring.ToBitString())} {(ystring.ToBitString())} {(zstring.ToBitString())} {(wstring.ToBitString())} ");
+                });
             }
         }
 
