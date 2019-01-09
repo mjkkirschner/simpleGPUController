@@ -132,6 +132,22 @@ namespace simpleGPUTests
                     return;
                 }
 
+                if (args.Contains("testmatrixorder"))
+                {
+                    testMatrixMultiplyOrder();
+                    return;
+                }
+
+                if (args.Contains("testserial"))
+                {
+                    testsSerial();
+                    return;
+                }
+
+                if (args.Contains("testnativeinterop")){
+                    serialComms.serialUtils.testNativeInterop();
+                }
+
                 var width = 1024;
                 var height = 768;
                 //load our teapot
@@ -223,19 +239,123 @@ namespace simpleGPUTests
                      });
             }
 
+            private static void testsSerial()
+            {
+                //update the data files.
+                testFixedPoint();
+                var port = serialComms.serialUtils.openArduinoSerialConnection();
+                //read the files back and send them out:
+                var vertComponents = File.ReadLines(@"./testVectors.txt");
+                vertComponents.ToList().ForEach(line => serialComms.serialUtils.sendData(port, line.ToList().Select(x => x == 1 ? true : false)));
+
+                serialComms.serialUtils.openArduinoSerialPortDirect();
+
+            }
+
+            private static void testMatrixMultiplyOrder()
+            {
+                var width = 640;
+                var height = 480;
+
+
+                //first lets generate projected verts by multiplying them against multiple matricies:
+
+                //load our teapot
+                var vectors = objLoader.loadVertsFromObjAtPath(new FileInfo(@"./teapot.obj"));
+                var tris = objLoader.loadTrisFromObjAtPath(new FileInfo(@"./teapot.obj"));
+
+
+                var cameraPos = new Vector3(5, 5, -5);
+                var target = new Vector3(0, 0, 0);
+
+                var view = Matrix4x4.CreateLookAt(cameraPos, target, Vector3.UnitY);
+                var proj = Matrix4x4.CreatePerspective(4, 3, 2, 10);
+
+                var projectedVectors1 = vectors.Select(vect =>
+             {
+                 var viewVert = new Vector3(vect.X, vect.Y, vect.Z).ApplyMatrix(view);
+                 var projVert = viewVert.ApplyMatrix(proj);
+                 return projVert;
+             }).ToList();
+
+                //then lets project verts using a single matrix which has been pre multipled.
+                var MVP = Matrix4x4.Multiply(view, proj);
+                var projectedVectors2 = vectors.Select(vect =>
+                           {
+                               return new Vector3(vect.X, vect.Y, vect.Z).ApplyMatrix(MVP);
+                           }).ToList();
+                //now compare every vector to make sure projection is the same.
+
+                var equalMask = projectedVectors1.Select((x, i) =>
+                {
+                    var result = x.ToString("F2") == projectedVectors2[i].ToString("F2");
+                    if (result == false)
+                    {
+                        Console.WriteLine($"index:{i} originalVector{x}, new vector:{projectedVectors2[i]}");
+
+                    }
+                    return result;
+                }
+                ).ToList();
+                if (equalMask.Any(x => x == false))
+                {
+                    throw new Exception("projected vectors were not the same");
+                }
+                Console.WriteLine("vectors were the same");
+
+                projectedVectors2.Select((vect, i) =>
+                {
+                    //now lets generate a report about the resulting pixel postions so we can use this as a test case in hardware:
+                    var scaledX = Math.Min(width - 1, (int)((vect.X + 1) * 0.5 * (float)width));
+                    var scaledY = Math.Min(height - 1, (int)((1 - (vect.Y + 1) * 0.5) * (float)height));
+                    Console.WriteLine($"index:{i} originalVert:{vectors[i]} projectedTo{vect}, pixel coords:{scaledX},{scaledY}");
+                    return 0;
+                }).ToList();
+            }
+
             private static void testFixedPoint()
             {
+                var Q = 16;
+                var N = 32;
+
                 var vectors = objLoader.loadVertsFromObjAtPath(new FileInfo(@"./teapot.obj"));
-                vectors.ForEach(x =>
+                var vectorxyzStringComponents = vectors.Select(x =>
+                 {
+                     var xstring = fixedPointMath.fixedPointMath.floatToFixedPoint(x.X, N, Q);
+                     var ystring = fixedPointMath.fixedPointMath.floatToFixedPoint(x.Y, N, Q);
+                     var zstring = fixedPointMath.fixedPointMath.floatToFixedPoint(x.Z, N, Q);
+                     var wstring = fixedPointMath.fixedPointMath.floatToFixedPoint(x.W, N, Q);
+
+
+                     Console.WriteLine($"vector {x} becomes {(xstring.ToBitString())} {(ystring.ToBitString())} {(zstring.ToBitString())} {(wstring.ToBitString())} ");
+                     return $"{(xstring.ToBitString())}\n{(ystring.ToBitString())}\n{(zstring.ToBitString())}";
+                 });
+
+                File.WriteAllLines("./testVectors.txt", vectorxyzStringComponents);
+
+                var camy = 5;
+                var cameraPos = new Vector3(camy, camy, -5);
+                var target = new Vector3(0, 0, 0);
+
+                var view = Matrix4x4.CreateLookAt(cameraPos, target, Vector3.UnitY);
+                var proj = Matrix4x4.CreatePerspective(4, 3, 2, 10);
+                var MVP = Matrix4x4.Multiply(view, proj);
+
+                Console.WriteLine(MVP);
+                //TODO A HAIL MARY TEST:
+                MVP = Matrix4x4.Transpose(MVP);
+                //now do the same for the MVP matrix.
+                var matrixVectors = new float[16] { MVP.M11, MVP.M12, MVP.M13, MVP.M14,
+                                                    MVP.M21, MVP.M22, MVP.M23, MVP.M24,
+                                                    MVP.M31, MVP.M32, MVP.M33, MVP.M34,
+                                                    MVP.M41, MVP.M42, MVP.M43, MVP.M44};
+                var matrixFixedBits = matrixVectors.Select(x =>
                 {
-                    var xstring = fixedPointMath.fixedPointMath.floatToFixedPoint(x.X, 16, 4);
-                    var ystring = fixedPointMath.fixedPointMath.floatToFixedPoint(x.Y, 16, 4);
-                    var zstring = fixedPointMath.fixedPointMath.floatToFixedPoint(x.Z, 16, 4);
-                    var wstring = fixedPointMath.fixedPointMath.floatToFixedPoint(x.W, 16, 4);
-
-
-                    Console.WriteLine($"vector {x} becomes {(xstring.ToBitString())} {(ystring.ToBitString())} {(zstring.ToBitString())} {(wstring.ToBitString())} ");
+                    var bits = fixedPointMath.fixedPointMath.floatToFixedPoint(x, N, Q);
+                    Console.WriteLine($"matrixEntry {x} becomes {bits.ToBitString()}");
+                    return $"{(bits.ToBitString())}";
                 });
+                File.WriteAllText("./testMVP.txt", String.Join("", matrixFixedBits));
             }
         }
 
