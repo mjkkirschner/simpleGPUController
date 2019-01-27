@@ -3,6 +3,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.Text;
+using System.Diagnostics;
 
 namespace fixedPointMath
 {
@@ -45,10 +46,25 @@ namespace fixedPointMath
             }
 
 
-            Console.WriteLine($"nlength string: {String.Join("",nSizeString)}");
+            Console.WriteLine($"nlength string: {String.Join("", nSizeString)}");
             var bitarray = new BitArray(nSizeString.ToList().Select(x => x == '1').ToArray());
             Console.WriteLine($"bitArray: {bitarray.ToBitString()}");
             return bitarray;
+        }
+
+        ///
+        ///<summary>This method converts a bit string to a byte array.</summary>
+        ///  
+        public static byte[] GetBytes(string bitString)
+        {
+            var byteValue = Enumerable.Range(0, bitString.Length / 8).
+                Select(pos => Convert.ToByte(
+                    bitString.Substring(pos * 8, 8),
+                    2)
+                ).ToArray();
+
+            Debug.WriteLine($"string {bitString} becomes byte { String.Join(",", byteValue.Select(x => Convert.ToString(x,2).PadLeft(8, '0')))}");
+            return byteValue;
         }
     }
 
