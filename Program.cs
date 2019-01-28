@@ -16,7 +16,7 @@ namespace simpleGPUTests
     {
         public static Vector3 ApplyMatrix(this Vector3 self, Matrix4x4 matrix)
         {
-            
+
             var w = matrix.M41 * self.X + matrix.M42 * self.Y + matrix.M43 * self.Z + matrix.M44;
 
             //matrix = Matrix4x4.Transpose(matrix);
@@ -80,7 +80,7 @@ namespace simpleGPUTests
             var view = Matrix4x4.CreateLookAt(cameraPos, target, Vector3.UnitY);
             //var view = Matrix4x4.CreateWorld(new Vector3(0,1,-20),Vector3.UnitZ,Vector3.UnitY);
             var proj = Matrix4x4.CreatePerspective(4, 3, 2, 10);
-            
+
             //do the projection.
             var MVP = Matrix4x4.Multiply(view, proj);
             MVP = Matrix4x4.Transpose(MVP);
@@ -92,6 +92,11 @@ namespace simpleGPUTests
 
             using (var image = new Image<Rgba32>(width, height))
             {
+
+                var xs = projectedVectors.Select(x=>x.X);
+                var ys = projectedVectors.Select(x=>x.Y);
+                Console.WriteLine($"min x:{xs.Min()}, max x:{xs.Max()}");
+                Console.WriteLine($"min y:{ys.Min()}, max y:{ys.Max()}");
 
                 var imageCoords = drawVerts(image, Rgba32.White, projectedVectors).ToList();
                 //now draw tris
@@ -128,8 +133,13 @@ namespace simpleGPUTests
                 if (vect.X >= -1 && vect.X <= 1 && vect.Y <= 1 && vect.Y >= -1)
                 {
                     //Console.WriteLine(vect.ToString());
-                    var scaledX = Math.Min(image.Width - 1, (int)((vect.X + 1) * 0.5 * (float)image.Width));
-                    var scaledY = Math.Min(image.Height - 1, (int)((1 - (vect.Y + 1) * 0.5) * (float)image.Height));
+                    //var scaledX = Math.Min(image.Width - 1, (int)((vect.X + 1) * 0.5 * (float)image.Width));
+                    //var scaledY = Math.Min(image.Height - 1, (int)((1 - (vect.Y + 1) * 0.5) * (float)image.Height));
+
+                    int scaledX = (int)((vect.X * (.5 * (float)image.Width)) + (.5 * (float)image.Width));
+                    //for some reason to make y scale correctly, we need to invert the values during scaling.
+                    int scaledY = (int)((vect.Y * -(.5 * (float)image.Height)) + (.5 * (float)image.Height));
+
                     //Console.WriteLine(color);
                     image[scaledX, scaledY] = color;
                     return new Vector2(scaledX, scaledY);

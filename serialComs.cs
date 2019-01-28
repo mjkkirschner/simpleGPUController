@@ -48,7 +48,7 @@ namespace serialComms
         {
 
             //split the vertData into chunks of 200 verts. (600 lines)
-            var verts = Split(File.ReadLines(@"./testVectors.txt"), 600);
+            var verts = Split(File.ReadLines(@"./testVectors.txt"), 1200);
             //convert each bitString to a byte array, and then concat all byte arrays into one for each chunk. (200 verts)
             //this should be 200 * 32 bits * 3 components (19200 bits) or 2400 bytes
             var byteArrays = verts.Select(x => x.Select(y => fixedPointMath.fixedPointMath.GetBytes(y)).Aggregate((list1, list2) => list1.Concat(list2).ToArray())).ToList();
@@ -56,7 +56,7 @@ namespace serialComms
             Console.WriteLine($"byteArray count {byteArrays.Count()}");
             Console.WriteLine($"byteArray size {byteArrays.ElementAt(0).Length}");
 
-            var fd = openSerialPort("/dev/cu.usbmodem1411401", 115200);
+            var fd = openSerialPort("/dev/cu.usbmodem1411401", 230400);
             sendDataAsBytes(fd, new byte[1] { 0b00000000 }, 1);
             var bytesToRead = 128;
             IntPtr ptr;
@@ -89,7 +89,7 @@ namespace serialComms
                     //var bitString = new BitArray(byteArrays.ElementAt(vertCount)).ToBitString();
                     //       Console.WriteLine($"about to send{bitString}");
 
-                    sendDataAsBytes(fd, byteArrays.ElementAt(vertCount), 2400);
+                    sendDataAsBytes(fd, byteArrays.ElementAt(vertCount), 4800);
                     vertCount = vertCount + 1;
                 }
 
