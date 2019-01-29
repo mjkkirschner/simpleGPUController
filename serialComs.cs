@@ -1,7 +1,7 @@
-
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Ports;
 using System.Linq;
@@ -43,7 +43,6 @@ namespace serialComms
             Console.WriteLine(files.Count);
             Console.WriteLine(String.Join(",", files.Select(x => x.FullName)));
         }
-
         public static void testNativeInterop()
         {
 
@@ -56,7 +55,7 @@ namespace serialComms
             Console.WriteLine($"byteArray count {byteArrays.Count()}");
             Console.WriteLine($"byteArray size {byteArrays.ElementAt(0).Length}");
 
-            var fd = openSerialPort("/dev/cu.usbmodem1411401", 230400);
+            var fd = openSerialPort("/dev/cu.usbmodem33533101", 230400);
             sendDataAsBytes(fd, new byte[1] { 0b00000000 }, 1);
             var bytesToRead = 128;
             IntPtr ptr;
@@ -78,16 +77,13 @@ namespace serialComms
                 }
                   */
 
-
                 ptr = readData(fd, bytesToRead);
                 Marshal.Copy(ptr, dataResult, 0, bytesToRead);
                 var stringData = System.Text.Encoding.Default.GetString(dataResult).Split(System.Environment.NewLine).First();
-               
-                //Console.WriteLine($"from c and serial port: {String.Join(" , ", stringData)}");
+
+                Debug.WriteLine($"from c and serial port: {String.Join(" , ", stringData)}");
                 if (stringData.Contains("entering vertex data mode"))
                 {
-                    //var bitString = new BitArray(byteArrays.ElementAt(vertCount)).ToBitString();
-                    //       Console.WriteLine($"about to send{bitString}");
 
                     sendDataAsBytes(fd, byteArrays.ElementAt(vertCount), 4800);
                     vertCount = vertCount + 1;
@@ -95,12 +91,17 @@ namespace serialComms
 
                 if (stringData.Contains("entering command mode."))
                 {
+                    Debug.WriteLine($"about to send command 0");
                     sendData(fd, new uint[1] { 0 }, 1);
                 }
             }
+            //clear the incoming stream
+            ptr = readData(fd, bytesToRead);
+            Debug.WriteLine("clearing the input buffer");
+
             watch.Stop();
             var elapsedMs = watch.ElapsedMilliseconds;
-            Console.WriteLine(elapsedMs);
+            Debug.WriteLine(elapsedMs);
         }
 
     }

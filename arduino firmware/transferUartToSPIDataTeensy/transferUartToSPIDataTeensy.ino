@@ -1,10 +1,10 @@
-int command = 0;
+byte command = 0;
 enum state {commandReadMode, dataReadMode};
 
 enum state currentState = commandReadMode;
 
 
-byte currentDataBuffer[4800];
+char currentDataBuffer[4800];
 size_t numBytesRead = 0;
 
 #define SCK 2
@@ -21,12 +21,12 @@ size_t numBytesRead = 0;
 
 
 //set data lines, shifting out MSB first. (bit 31)
-void shiftDataOut(const byte *buffer, int offset)
+void shiftDataOut(const char *buffer, int offset)
 {
 
   //set enable low
-  //digitalWrite(ENABLE, LOW);
-  PORTG &= ~(1 << 5);
+  digitalWrite(ENABLE, LOW);
+  //PORTG &= ~(1 << 5);
 
 
   const byte b0 = buffer[0 + offset], b1 = buffer[1 + offset], b2 = buffer[2 + offset], b3 = buffer[3 + offset];
@@ -39,19 +39,19 @@ void shiftDataOut(const byte *buffer, int offset)
     for (int bit_index = 7; bit_index >= 0; bit_index -= 1)
     {
       //clock low
-      PORTE &= ~(1 << 4);
-      //digitalWrite(SCK, LOW);
+      //PORTE &= ~(1 << 4);
+      digitalWrite(SCK, LOW);
       data = nextComponent[byte_index];
       int bitState = bitRead(data, bit_index);
       
       //magical xor bit set to 0 or 1.
-      PORTE ^= (-bitState ^ PORTE) & (1 << 5);
+      //PORTE ^= (-bitState ^ PORTE) & (1 << 5);
 
-      //digitalWrite(DATA_OUT, bitState);
+      digitalWrite(DATA_OUT, bitState);
 
       //clock high
-      PORTE |= (1 << 4);
-      //digitalWrite(SCK, HIGH);
+      //PORTE |= (1 << 4);
+      digitalWrite(SCK, HIGH);
     }
   }
 
@@ -61,12 +61,12 @@ void shiftDataOut(const byte *buffer, int offset)
 
 
 
-  PORTE &= ~(1 << 5);
-  PORTE &= ~(1 << 4);
-  //digitalWrite(DATA_OUT, LOW);
-  //digitalWrite(SCK, LOW);
-  PORTG |= (1 << 5);
-  //digitalWrite(ENABLE, HIGH);
+  //PORTE &= ~(1 << 5);
+  //PORTE &= ~(1 << 4);
+  digitalWrite(DATA_OUT, LOW);
+  digitalWrite(SCK, LOW);
+  //PORTG |= (1 << 5);
+  digitalWrite(ENABLE, HIGH);
 }
 
 
@@ -167,6 +167,7 @@ void loop()
       }
 
       Serial.println("entering command mode.");
+      Serial.flush();
       currentState = commandReadMode;
     }
   }
