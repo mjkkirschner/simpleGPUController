@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Collections;
 using fixedPointMath;
+using SerialCommunication;
 
 namespace simpleGPUTests
 {
@@ -54,16 +55,10 @@ namespace simpleGPUTests
                 testMatrixMultiplyOrder();
                 return;
             }
-
-            if (args.Contains("testserial"))
-            {
-                testsSerial();
-                return;
-            }
-
+        
             if (args.Contains("testnativeinterop"))
             {
-                serialComms.serialUtils.testNativeInterop();
+                SerialCommunication.serialUtils.testNativeInterop();
                 return;
             }
 
@@ -150,19 +145,6 @@ namespace simpleGPUTests
             });
         }
 
-        private static void testsSerial()
-        {
-            //update the data files.
-            testFixedPoint();
-            //var port = serialComms.serialUtils.openArduinoSerialConnection();
-            //read the files back and send them out:
-            var vertComponents = File.ReadLines(@"./testVectors.txt");
-            //vertComponents.ToList().ForEach(line => serialComms.serialUtils.sendData(port, line.ToList().Select(x => x == 1 ? true : false)));
-
-            serialComms.serialUtils.openArduinoSerialPortDirect();
-
-        }
-
         private static void testMatrixMultiplyOrder()
         {
             var width = 640;
@@ -242,7 +224,7 @@ namespace simpleGPUTests
                  return $"{(xstring.ToBitString())}\n{(ystring.ToBitString())}\n{(zstring.ToBitString())}";
              });
 
-            File.WriteAllLines("./testVectors.txt", vectorxyzStringComponents);
+            File.WriteAllLines("../testVectors.txt", vectorxyzStringComponents);
 
             var camy = 5;
             var cameraPos = new Vector3(camy, camy, 5);
@@ -266,7 +248,7 @@ namespace simpleGPUTests
                 Console.WriteLine($"matrixEntry {x} becomes {bits.ToBitString()}");
                 return $"{(bits.ToBitString())}";
             });
-            File.WriteAllText("./testMVP.txt", String.Join("", matrixFixedBits));
+            File.WriteAllText("../testMVP.txt", String.Join("", matrixFixedBits));
         }
     }
 

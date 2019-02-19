@@ -140,8 +140,19 @@ void loop()
       command = Serial.read();
       if (command == 0)
       {
+          //start all control lines low
+          digitalWrite(MODE0, LOW);
+          digitalWrite(MODE1, LOW);
+          digitalWrite(MODE2, LOW);
         Serial.println("entering vertex data mode");
         currentState = dataReadMode;
+      }
+
+      if(command == 3){
+        Serial.println("entering frameBuffer blank mode");
+        digitalWrite(MODE0, LOW);
+        digitalWrite(MODE1, HIGH);
+        digitalWrite(MODE2, HIGH);
       }
     }
   }
