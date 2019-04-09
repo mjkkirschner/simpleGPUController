@@ -1,6 +1,8 @@
 # simpleGPUController
 control software for simpleGPU
 
+![diagram](https://github.com/mjkkirschner/simpleGPUController/blob/master/docs/gpusimple.png)
+
 ---
 ### what is in here:
 
@@ -35,6 +37,8 @@ z
   *  `testnativeinterop` send commands over serial to a microcontroller running the test firmware.
   * ` ` generate an image from an .obj
   * `testMatrixMultiplyOrder` sanity checks.
+  
+<img src="https://github.com/mjkkirschner/simpleGPUController/blob/master/gpuTests/testoutput.png?raw=true" >
 
 ---
 ### test firmware
