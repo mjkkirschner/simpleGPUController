@@ -9,6 +9,7 @@ using System.Linq;
 using System.Collections;
 using fixedPointMath;
 using SerialCommunication;
+using simpleGPUTests;
 
 namespace simpleGPUTests
 {
@@ -37,6 +38,13 @@ namespace simpleGPUTests
         }
     }
 
+    public static class Vector3Extensions
+    {
+        public static Vector3 ToVector3(this Vector2 vec)
+        {
+            return new Vector3(vec.X, vec.Y, 1.0f);
+        }
+    }
 
     class Program
     {
@@ -55,7 +63,7 @@ namespace simpleGPUTests
                 testMatrixMultiplyOrder();
                 return;
             }
-        
+
             if (args.Contains("testnativeinterop"))
             {
                 SerialCommunication.serialUtils.testNativeInterop();
@@ -88,12 +96,13 @@ namespace simpleGPUTests
             using (var image = new Image<Rgba32>(width, height))
             {
 
-                var xs = projectedVectors.Select(x=>x.X);
-                var ys = projectedVectors.Select(x=>x.Y);
+                var xs = projectedVectors.Select(x => x.X);
+                var ys = projectedVectors.Select(x => x.Y);
                 Console.WriteLine($"min x:{xs.Min()}, max x:{xs.Max()}");
                 Console.WriteLine($"min y:{ys.Min()}, max y:{ys.Max()}");
 
                 var imageCoords = drawVerts(image, Rgba32.White, projectedVectors).ToList();
+                var depthBuffer = Enumerable.Repeat(1.0, width * height).ToArray();
                 //now draw tris
                 tris.ForEach(tri =>
                 {
@@ -106,17 +115,111 @@ namespace simpleGPUTests
                     var allpoints = line1.Concat(line2).Concat(line3);
                     allpoints.ToList().ForEach(pt =>
                     {
-                        image[(int)pt.X, (int)pt.Y] = new Rgba32(Color.White.R, Color.White.G, Color.White.B, Color.White.A);
+                   //     image[(int)pt.X, (int)pt.Y] = new Rgba32(Color.White.R, Color.White.G, Color.White.B, Color.White.A);
                     });
 
                 });
 
+
+                tris.ForEach(tri =>
+                {
+                    Console.WriteLine(tri);
+                    var A = imageCoords[tri.Item1 - 1];
+                    var B = imageCoords[tri.Item2 - 1];
+                    var C = imageCoords[tri.Item3 - 1];
+
+                    var AProjectedSpace = projectedVectors[tri.Item1 - 1];
+                    var BProjectedSpace = projectedVectors[tri.Item2 - 1];
+                    var CProjectedSpace = projectedVectors[tri.Item3 - 1];
+
+                    var verts = new List<Vector2>() { A, B, C };
+                    //calculate bounding box and iterate all pixels within.
+                    var minx = verts.Select(x => x.X).Min();
+                    var miny = verts.Select(x => x.Y).Min();
+                    var maxx = verts.Select(x => x.X).Max();
+                    var maxy = verts.Select(x => x.Y).Max();
+
+                    Console.WriteLine($"{minx},{miny}    {maxx},{maxy}");
+
+                    Enumerable.Range((int)minx, (int)(maxx - minx)).ToList().ForEach(x =>
+                    {
+                        Console.WriteLine(x);
+
+                        Enumerable.Range((int)miny, (int)(maxy - miny)).ToList().ForEach(y =>
+                        {
+                            Console.WriteLine(y);
+                            var pixelIsInsideTriangle = Program.pixelIsInsideTriangle(x, y, tri, imageCoords);
+                            var bary = baryCoordinates(x, y, tri, imageCoords);
+                            var z = bary.X * AProjectedSpace.Z + bary.Y * BProjectedSpace.Z + bary.Z * CProjectedSpace.Z;
+                            
+                            var AB = Vector3.Subtract(AProjectedSpace,BProjectedSpace);
+                            var AC = Vector3.Subtract(AProjectedSpace,CProjectedSpace);
+                            var ABXAC = Vector3.Normalize(Vector3.Cross(AB,AC));
+
+
+                            if (pixelIsInsideTriangle)
+                            {
+                                if (z < depthBuffer[(x * width + y)])
+                                {
+                                    
+                                    var diffuseCoef = (float)( Math.Max(Vector3.Dot(ABXAC,new Vector3(1.0f,0f,0f)),0));
+
+                                    image[(int)x, (int)y] = new Rgba32(diffuseCoef,diffuseCoef,diffuseCoef);
+                                    depthBuffer[(x * width + y)] = z;
+                                }
+
+                            }
+                        });
+                    });
+
+                });
 
                 var stream = File.Create($"./images/testoutput.png");
                 image.SaveAsPng(stream);
                 stream.Dispose();
             }
 
+        }
+
+        private static Vector3 baryCoordinates(int x, int y, Tuple<int, int, int> triangle, List<Vector2> vectors)
+        {
+
+            var p = new Vector2(x, y);
+            var a = vectors[triangle.Item1 - 1];
+            var b = vectors[triangle.Item2 - 1];
+            var c = vectors[triangle.Item3 - 1];
+
+            var ab = Vector2.Subtract(a, b).ToVector3();
+            var bc = Vector2.Subtract(b, c).ToVector3();
+            var bp = Vector2.Subtract(b, p).ToVector3();
+            var cp = Vector2.Subtract(c, p).ToVector3();
+            var ac = Vector2.Subtract(a, c).ToVector3();
+
+
+            var areaABC = Vector3.Cross(ab, bc).Length() * .5f;
+            var areaABP = Vector3.Cross(ab, bp).Length() * .5f;
+            var areaACP = Vector3.Cross(ac, cp).Length() * .5f;
+            var areaBCP = Vector3.Cross(bc, cp).Length() * .5f;
+
+            var bary = new Vector3();
+            bary.X = areaBCP / areaABC; // alpha
+            bary.Y = areaACP / areaABC; // beta
+            bary.Z = 1.0f - bary.X - bary.Y; // gamma
+
+            return bary;
+        }
+
+        //TODO make tri class and move to new file - add this function as method there.
+        private static bool pixelIsInsideTriangle(int x, int y, Tuple<int, int, int> triangle, List<Vector2> vectors)
+        {
+
+            var barycenter = baryCoordinates(x, y, triangle, vectors);
+            //only in the triangle if coefs are all positive.
+            if (barycenter.X >= 0.0 && barycenter.Y >= 0.0 && barycenter.Z >= 0.0)
+            {
+                return true;
+            }
+            return false;
         }
 
 
